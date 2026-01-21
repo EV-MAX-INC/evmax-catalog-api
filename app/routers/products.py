@@ -56,7 +56,7 @@ def update_product(product_id: int, product: schemas.ProductUpdate, db: Session 
     if "sku" in update_data and update_data["sku"] != db_product.sku:
         existing = db.query(models.Product).filter(models.Product.sku == update_data["sku"]).first()
         if existing:
-            raise HTTPException(status_code=400, detail="Product with this SKU already exists")
+            raise HTTPException(status_code=400, detail=f"Cannot update: Product with SKU '{update_data['sku']}' already exists")
     
     try:
         for field, value in update_data.items():
@@ -77,9 +77,13 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
     if not db_product:
         raise HTTPException(status_code=404, detail="Product not found")
     
-    db.delete(db_product)
-    db.commit()
-    return None
+    try:
+        db.delete(db_product)
+        db.commit()
+        return None
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error deleting product: {str(e)}")
 
 
 @router.post("/quote", response_model=schemas.QuoteResponse)
