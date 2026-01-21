@@ -31,11 +31,15 @@ def create_product(product: schemas.ProductCreate, db: Session = Depends(get_db)
     if existing:
         raise HTTPException(status_code=400, detail="Product with this SKU already exists")
     
-    db_product = models.Product(**product.model_dump())
-    db.add(db_product)
-    db.commit()
-    db.refresh(db_product)
-    return db_product
+    try:
+        db_product = models.Product(**product.model_dump())
+        db.add(db_product)
+        db.commit()
+        db.refresh(db_product)
+        return db_product
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating product: {str(e)}")
 
 
 @router.put("/{product_id}", response_model=schemas.Product)
@@ -47,12 +51,23 @@ def update_product(product_id: int, product: schemas.ProductUpdate, db: Session 
     
     # Update only provided fields
     update_data = product.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_product, field, value)
     
-    db.commit()
-    db.refresh(db_product)
-    return db_product
+    # If SKU is being updated, check if it already exists
+    if "sku" in update_data and update_data["sku"] != db_product.sku:
+        existing = db.query(models.Product).filter(models.Product.sku == update_data["sku"]).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Product with this SKU already exists")
+    
+    try:
+        for field, value in update_data.items():
+            setattr(db_product, field, value)
+        
+        db.commit()
+        db.refresh(db_product)
+        return db_product
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating product: {str(e)}")
 
 
 @router.delete("/{product_id}", status_code=204)
@@ -122,7 +137,13 @@ def calculate_volume_discount(quantity: int, pricing_tiers: dict) -> float:
     """Calculate volume discount percentage based on quantity (5-20%)"""
     # If pricing_tiers is defined in the product, use it
     if pricing_tiers:
-        for tier_name, tier_data in sorted(pricing_tiers.items()):
+        # Sort by min_quantity in descending order to apply highest discount first
+        sorted_tiers = sorted(
+            pricing_tiers.items(),
+            key=lambda x: x[1].get("min_quantity", 0),
+            reverse=True
+        )
+        for tier_name, tier_data in sorted_tiers:
             if quantity >= tier_data.get("min_quantity", 0):
                 return tier_data.get("discount_percent", 0)
     

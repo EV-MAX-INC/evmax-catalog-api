@@ -2,10 +2,22 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from datetime import datetime
+from contextlib import asynccontextmanager
 from app.config import settings
 from app.database import get_db, init_db
 from app.routers import products
 from app import schemas
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan context manager"""
+    # Startup: Initialize database
+    init_db()
+    yield
+    # Shutdown: cleanup if needed
+    pass
+
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -13,7 +25,8 @@ app = FastAPI(
     description="Product catalog and quote generation API for precast concrete products",
     version="2.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # Configure CORS
@@ -27,12 +40,6 @@ app.add_middleware(
 
 # Include routers
 app.include_router(products.router)
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database on startup"""
-    init_db()
 
 
 @app.get("/", tags=["root"])
