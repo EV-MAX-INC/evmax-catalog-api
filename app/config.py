@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     DB_POOL_TIMEOUT: int = 30
 
     # CORS Configuration
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:8000"
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8000"]
     CORS_CREDENTIALS: bool = True
     CORS_METHODS: str = "*"
     CORS_HEADERS: str = "*"
@@ -63,10 +63,12 @@ class Settings(BaseSettings):
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: Any) -> List[str]:
-        """Parse CORS origins from comma-separated string."""
+        """Parse CORS origins from comma-separated string or list."""
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",")]
-        return v
+        elif isinstance(v, list):
+            return v
+        return []
 
 
 # Global settings instance
