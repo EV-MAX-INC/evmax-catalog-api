@@ -19,6 +19,12 @@ from app.schemas.bid import (
     ROIAnalysisRequest,
     ROIAnalysisResponse,
 )
+from app.schemas.contextual_chain import (
+    ContextualChainNodeCreate,
+    ContextualChainNodeResponse,
+    ChainAnalysisResponse,
+    ChainSnapshotResponse,
+)
 
 __all__ = [
     "CostCodeBase",
@@ -36,4 +42,8 @@ __all__ = [
     "BidCalculateResponse",
     "ROIAnalysisRequest",
     "ROIAnalysisResponse",
+    "ContextualChainNodeCreate",
+    "ContextualChainNodeResponse",
+    "ChainAnalysisResponse",
+    "ChainSnapshotResponse",
 ]
