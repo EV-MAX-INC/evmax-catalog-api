@@ -155,7 +155,7 @@ def create_bid_with_context(
 # Example 1: Create a simple chain with cost codes and analyze
 # ============================================================================
 def example_1_simple_chain():
-    """Example 1: Create bid with contextual tracking."""
+    """Example 1: Create a simple chain with cost codes and analyze heritage."""
     print("=" * 70)
     print("Example 1: Create Bid with Contextual Tracking")
     print("=" * 70)
@@ -193,7 +193,7 @@ def example_1_simple_chain():
 # Example 2: Multi-level chain with snapshots
 # ============================================================================
 def example_2_multilevel_chain():
-    """Example 2: Analyze bid heritage."""
+    """Example 2: Create a multi-level chain and generate snapshots."""
     print("=" * 70)
     print("Example 2: Multi-level Chain with Snapshots")
     print("=" * 70)
