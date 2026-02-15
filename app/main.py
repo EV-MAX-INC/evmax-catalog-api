@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import init_db
-from app.routes import cost_codes_router, bids_router, analysis_router
+from app.routes import cost_codes_router, bids_router, analysis_router, contextual_chains_router
 
 
 @asynccontextmanager
@@ -42,6 +42,7 @@ app.add_middleware(
 app.include_router(cost_codes_router, prefix=settings.API_PREFIX)
 app.include_router(bids_router, prefix=settings.API_PREFIX)
 app.include_router(analysis_router, prefix=settings.API_PREFIX)
+app.include_router(contextual_chains_router, prefix=settings.API_PREFIX)
 
 
 @app.get("/", tags=["Root"])

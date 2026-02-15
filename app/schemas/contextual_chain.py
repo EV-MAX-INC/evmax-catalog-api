@@ -1,6 +1,6 @@
 """Pydantic schemas for contextual chain."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
@@ -21,11 +21,11 @@ class ContextualChainNodeResponse(BaseModel):
     node_id: str
     node_type: str
     parent_nodes: List[str]
-    metadata: Dict[str, Any]
+    metadata: Dict[str, Any] = Field(alias="node_metadata")
     lathering_depth: int
     created_at: datetime
     
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
 
 class ChainAnalysisResponse(BaseModel):
