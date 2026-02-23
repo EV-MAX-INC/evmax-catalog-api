@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     ENABLE_BID_CALCULATION: bool = True
     ENABLE_ROI_ANALYSIS: bool = True
 
+    # Contextual Chain Configuration
+    ENABLE_CONTEXTUAL_TRACKING: bool = True
+    MAX_CHAIN_DEPTH: int = 50
+    CHAIN_SNAPSHOT_TTL: int = 3600  # seconds
+    ENABLE_CIRCULAR_DEPENDENCY_CHECK: bool = True
+
     # Rate Limiting
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_PER_MINUTE: int = 60

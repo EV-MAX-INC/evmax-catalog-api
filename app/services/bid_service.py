@@ -273,3 +273,164 @@ class BidService:
             "estimated_cost": estimated_cost,
             "monthly_profit": round(monthly_profit, 2) if monthly_profit > 0 else 0,
         }
+    
+    @staticmethod
+    def create_contextual_bid(
+        db: Session,
+        bid_data: BidCreate,
+        parent_cost_codes: Optional[List[int]] = None
+    ) -> tuple[Bid, Optional[Any]]:
+        """
+        Create a bid with automatic contextual chain tracking.
+        
+        Args:
+            db: Database session
+            bid_data: Bid creation data
+            parent_cost_codes: Optional list of parent cost code IDs
+            
+        Returns:
+            Tuple of (created bid, contextual node)
+        """
+        from app.services.contextual_service import ContextualLatheringService
+        from app.config import settings
+        
+        # Create the bid using standard method
+        bid = BidService.create_bid(db, bid_data)
+        
+        # Create contextual chain node if tracking is enabled
+        contextual_node = None
+        if settings.ENABLE_CONTEXTUAL_TRACKING:
+            try:
+                parent_nodes = []
+                if parent_cost_codes:
+                    parent_nodes = [f"cost-code-{cc_id}" for cc_id in parent_cost_codes]
+                elif bid.line_items:
+                    # Extract from line items
+                    for item in bid.line_items:
+                        if isinstance(item, dict) and "cost_code_id" in item:
+                            parent_nodes.append(f"cost-code-{item['cost_code_id']}")
+                
+                node_id = f"bid-{bid.id}"
+                contextual_node = ContextualLatheringService.create_node(
+                    db=db,
+                    node_id=node_id,
+                    node_type="bid",
+                    parent_nodes=parent_nodes,
+                    metadata={
+                        "bid_number": bid.bid_number,
+                        "project_name": bid.project_name,
+                        "client_name": bid.client_name,
+                        "status": bid.status,
+                    }
+                )
+            except Exception as e:
+                # Log error but don't fail bid creation
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to create contextual node for bid {bid.id}: {e}")
+        
+        return bid, contextual_node
+    
+    @staticmethod
+    def analyze_bid_heritage(db: Session, bid_id: int) -> Dict[str, Any]:
+        """
+        Analyze complete heritage lineage for a bid.
+        
+        Args:
+            db: Database session
+            bid_id: Bid ID to analyze
+            
+        Returns:
+            Dictionary with heritage analysis
+        """
+        from app.services.contextual_service import ContextualLatheringService
+        
+        node_id = f"bid-{bid_id}"
+        return ContextualLatheringService.get_node_analysis(db, node_id)
+    
+    @staticmethod
+    def get_chain_snapshot(db: Session, bid_id: int) -> Dict[str, Any]:
+        """
+        Get complete chain snapshot for a bid.
+        
+        Args:
+            db: Database session
+            bid_id: Bid ID
+            
+        Returns:
+            Chain snapshot dictionary
+        """
+        from app.services.contextual_service import ContextualLatheringService
+        
+        node_id = f"bid-{bid_id}"
+        return ContextualLatheringService.get_chain_snapshot(db, node_id)
+    
+    @staticmethod
+    def calculate_chain_value_flow(db: Session, bid_id: int) -> Dict[str, Any]:
+        """
+        Calculate value flow through the contextual chain.
+        
+        Args:
+            db: Database session
+            bid_id: Bid ID
+            
+        Returns:
+            Dictionary with value flow analysis
+        """
+        from app.services.contextual_service import ContextualLatheringEngine
+        
+        bid = BidService.get_bid(db, bid_id)
+        if not bid:
+            return {"error": "Bid not found"}
+        
+        node_id = f"bid-{bid_id}"
+        engine = ContextualLatheringEngine(db)
+        
+        try:
+            # Get heritage lineage
+            lineage = engine.get_heritage_lineage(node_id)
+            
+            # Calculate total value from cost codes in chain
+            total_chain_value = 0.0
+            cost_code_values = {}
+            
+            if bid.line_items:
+                from app.models.cost_code import CostCode
+                
+                for item in bid.line_items:
+                    if isinstance(item, dict) and "cost_code_id" in item:
+                        cost_code_id = item["cost_code_id"]
+                        cost_code = db.query(CostCode).filter(
+                            CostCode.id == cost_code_id
+                        ).first()
+                        
+                        if cost_code:
+                            item_total = item.get("total", 0)
+                            total_chain_value += item_total
+                            cost_code_values[f"cost-code-{cost_code_id}"] = {
+                                "code": cost_code.code,
+                                "name": cost_code.name,
+                                "value": item_total,
+                                "quantity": item.get("quantity", 0),
+                            }
+            
+            return {
+                "bid_id": bid_id,
+                "bid_total": bid.total_amount or 0,
+                "chain_depth": len(lineage),
+                "heritage_nodes": lineage,
+                "cost_code_values": cost_code_values,
+                "total_chain_value": total_chain_value,
+                "value_concentration": (
+                    total_chain_value / bid.total_amount * 100
+                    if bid.total_amount and bid.total_amount > 0 else 0
+                ),
+            }
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to calculate chain value flow: {e}")
+            return {
+                "error": str(e),
+                "bid_id": bid_id,
+            }
